@@ -1,0 +1,144 @@
+---
+title: "Homework 7: Strings + Logical Vectors (Graphical Perception)"
+author: "MICR 475/575"
+format:
+  html:
+    toc: true
+    embed-resources: true
+execute:
+  warning: false
+  message: false
+editor: visual
+---
+
+## Instructions
+
+In this homework you will practice:
+
+-   importing a Google Forms CSV export
+-   working with **strings**
+-   building and using **logical vectors**
+-   making data tidy with `pivot_longer()`
+-   making a simple **box plot**
+
+You will work with a Google Forms CSV export from our in-class graphical perception experiment.
+
+------------------------------------------------------------------------
+
+## Setup
+
+```{r}
+library(tidyverse)
+
+csv_path <- "~/Documents/micr 475/source code/hw files/r4ds_c10_to_16/data/handb_ptest.csv"   # <-- update if needed
+```
+
+------------------------------------------------------------------------
+
+# Q1. Import the data
+
+**Task:** Read the CSV into an object called `raw`, then preview it.
+
+```{r}
+# YOUR CODE HERE
+setwd("~/Documents/micr 475/source code/hw files/r4ds_c10_to_16/data")
+raw <- read_csv("handb_ptest.csv")
+```
+
+------------------------------------------------------------------------
+
+## Q2. Tidy the data (Method A: pivot_longer first, then rename question type variable)
+
+In the raw Google Forms export, the response columns have long names that include the full question text. Your goal is a tidy data frame with one row per response, and columns:
+
+-   `timestamp`
+-   `chart_type` (values like `T1`, `T2`, ..., `T9`)
+-   `percent` (numeric)
+
+**Task A:** Start from `raw`, `pivot_longer()` everything *except* `timestamp`.
+
+**Task B:** Convert the `percent` column to a number.
+
+**Task C:** Use **string operations** (and at least one **logical vector**) to convert the messy `chart_type` column into clean labels.
+
+> Hint 1: `parse_number(chart_type)` can pull the number out of the string.\
+> Hint 2: A logical vector can help you keep only the question numbers you want.
+
+**Task D:** Make a **box plot** of `percent` by `chart_type` (no log transform).
+
+```{r}
+# YOUR CODE HERE
+df <- raw |>
+  pivot_longer(
+    cols=c(2:19),
+    names_to = 'chart_type',
+    values_to = 'percent'
+  )
+
+df <- df |> mutate(
+  percent = parse_number(as.character(percent))
+    ) |> mutate(
+  chart_type = str_replace(chart_type, "The smaller is approximately ___% of the larger...", 'T')
+)
+
+df <- df |> filter(!is.na(percent))
+
+ggplot(df, aes(x=chart_type, y=percent)) +
+  geom_boxplot()
+
+```
+
+------------------------------------------------------------------------
+
+# Q3. Tidy the data (Method B: rename columns first, then pivot_longer)
+
+This method uses the idea that (after `Timestamp`) the remaining columns are the 9 chart types, in order. The following steps provide one way this can be done - if you can get to the right answer using a different method, that's fine too!
+
+**Task A:** Create a new data frame `df` that keeps `timestamp` plus the 9 response columns.
+
+**Task B:** use the paste0() function to generate a vector of neat column headings 'T1', 'T2', etc. (keep `timestamp` as-is).
+
+**Task C:** use the function set_names() with your new vector of column names to rename your columns
+
+**Task D:** `pivot_longer()` to make a tidy data frame with `timestamp`, `chart_type`, `percent` (numeric).
+
+**Task E:** Make the same **box plot** of `percent` by `chart_type`.
+
+```{r}
+# YOUR CODE HERE
+
+dfb <- subset(raw, select =c(1,3,5,7,9,11,13,15,17,19))
+colnames <- c('T1','T2','T3','T4','T5','T6','T7','T8','T9')
+dfb <- dfb |>
+  set_names("The smaller is approximately ___% of the larger...", colnames) |>
+  rename(
+    Timestamp = "The smaller is approximately ___% of the larger..."
+  )
+
+dfb <- dfb |>
+  pivot_longer(
+    cols=c(2:10),
+    names_to = 'chart_type',
+    values_to = 'percent'
+  ) 
+dfb <- dfb |> mutate(
+  percent = parse_number(as.character(percent)) 
+) |> filter(!is.na(percent))
+
+ggplot(dfb, aes(x=chart_type, y=percent)) +
+  geom_boxplot()
+```
+
+------------------------------------------------------------------------
+
+# Q4. Do the two methods agree?
+
+**Task A:** Check that the boxplots from Q2 and Q3 are the same. It's ok if they aren't - just please comment on why they disagree
+
+**Task B:** In 3–6 sentences, comment on what the box plots show. Does it give the same gist that we would expect from Heer and Bostock's results? If not, why not?
+
+```{r}
+# The boxplots aren't the same. With Q2, I wasn't sure how to properly rename the chart types, so the numbers are different than Q3, and the box plot is not in order. However, it looks like each result per chart type is the same, they are just in different orders. 
+
+# The boxplots show that the different types of charts affect people's ability to accurately perceive the size differences. However, it appears that our class did not necessarily follow the same patterns as Heer and Bostock's results, because T6 had the most accuracy for them and the least accuracy for us. 
+```
